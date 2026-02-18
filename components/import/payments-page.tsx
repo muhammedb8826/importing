@@ -13,6 +13,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -51,6 +61,7 @@ export function PaymentsPage() {
   const { data, addPayment, updatePayment, deletePayment } = useImportData();
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<number | null>(null);
 
   const [shipmentId, setShipmentId] = React.useState<string>("");
   const [amountRmb, setAmountRmb] = React.useState("");
@@ -115,10 +126,15 @@ export function PaymentsPage() {
     setOpen(false);
   }
 
-  function handleDelete(id: number) {
-    if (!confirm("Delete this payment?")) return;
-    deletePayment(id);
+  function openDeleteDialog(id: number) {
+    setDeleteTarget(id);
+  }
+
+  function confirmDelete() {
+    if (deleteTarget == null) return;
+    deletePayment(deleteTarget);
     toast.success("Payment deleted");
+    setDeleteTarget(null);
   }
 
   return (
@@ -286,7 +302,7 @@ export function PaymentsPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            onClick={() => handleDelete(p.id)}
+                            onClick={() => openDeleteDialog(p.id)}
                           >
                             <IconTrash className="size-4" />
                             Delete
@@ -301,6 +317,22 @@ export function PaymentsPage() {
           </TableBody>
         </Table>
       </div>
+      <AlertDialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete this payment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

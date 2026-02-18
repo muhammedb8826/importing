@@ -6,6 +6,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -62,6 +72,7 @@ export function ItemsPage() {
   const { data, addItem, updateItem, deleteItem } = useImportData();
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: number; name: string } | null>(null);
 
   const [shipmentId, setShipmentId] = React.useState<string>("");
   const [name, setName] = React.useState("");
@@ -144,10 +155,15 @@ export function ItemsPage() {
     setOpen(false);
   }
 
-  function handleDelete(id: number, name: string) {
-    if (!confirm(`Delete item "${name}"?`)) return;
-    deleteItem(id);
+  function openDeleteDialog(id: number, name: string) {
+    setDeleteTarget({ id, name });
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    deleteItem(deleteTarget.id);
     toast.success("Item deleted");
+    setDeleteTarget(null);
   }
 
   return (
@@ -365,7 +381,7 @@ export function ItemsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onClick={() => handleDelete(item.id, item.name)}
+                              onClick={() => openDeleteDialog(item.id, item.name)}
                             >
                               <IconTrash className="size-4" />
                               Delete
@@ -381,6 +397,22 @@ export function ItemsPage() {
           </Table>
         </div>
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete item &quot;{deleteTarget?.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

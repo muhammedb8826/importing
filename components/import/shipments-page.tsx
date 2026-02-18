@@ -14,6 +14,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -58,6 +68,7 @@ export function ShipmentsPage() {
   const { data, addShipment, updateShipment, deleteShipment } = useImportData();
   const [open, setOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<{ id: number; piNumber: string } | null>(null);
 
   const [supplier, setSupplier] = React.useState("");
   const [piNumber, setPiNumber] = React.useState("");
@@ -126,10 +137,15 @@ export function ShipmentsPage() {
     setOpen(false);
   }
 
-  function handleDelete(id: number, piNumber: string) {
-    if (!confirm(`Delete shipment ${piNumber}? This will also delete all items and payments.`)) return;
-    deleteShipment(id);
+  function openDeleteDialog(id: number, piNumber: string) {
+    setDeleteTarget({ id, piNumber });
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    deleteShipment(deleteTarget.id);
     toast.success("Shipment deleted");
+    setDeleteTarget(null);
   }
 
   return (
@@ -285,7 +301,7 @@ export function ShipmentsPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
-                          onClick={() => handleDelete(s.id, s.piNumber)}
+                          onClick={() => openDeleteDialog(s.id, s.piNumber)}
                         >
                           <IconTrash className="size-4" />
                           Delete
@@ -299,6 +315,22 @@ export function ShipmentsPage() {
           </TableBody>
         </Table>
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete shipment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete shipment {deleteTarget?.piNumber}? This will also delete all items and payments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
