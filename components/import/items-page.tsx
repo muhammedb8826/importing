@@ -1,7 +1,26 @@
 "use client";
 
 import * as React from "react";
-import { IconDotsVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
+  IconDotsVertical,
+  IconLayoutColumns,
+  IconPencil,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -59,7 +79,6 @@ import {
   getItemTotalRmb,
   getItemTotalSell,
   getItemTotalTax,
-  getItemTotalUnits,
   type ShipmentItem,
 } from "@/lib/import-types";
 
@@ -166,11 +185,108 @@ export function ItemsPage() {
     setDeleteTarget(null);
   }
 
+  const columns = React.useMemo<ColumnDef<ShipmentItem>[]>(
+    () => [
+      {
+        id: "item",
+        header: "Item",
+        cell: ({ row }) => {
+          const item = row.original;
+          const shipment = data.shipments.find((s) => s.id === item.shipmentId);
+          return (
+            <div>
+              <div className="font-medium">{item.name}</div>
+              <div className="text-muted-foreground text-xs">
+                {shipment?.piNumber ?? item.shipmentId}
+              </div>
+            </div>
+          );
+        },
+      },
+      { accessorKey: "ctn", header: () => <div className="text-right">CTN</div>, cell: ({ row }) => <div className="text-right">{row.original.ctn}</div> },
+      { accessorKey: "qty", header: () => <div className="text-right">QTY</div>, cell: ({ row }) => <div className="text-right">{row.original.qty}</div> },
+      { accessorKey: "purPrice", header: () => <div className="text-right">PUR/PRICE</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.purPrice)}</div> },
+      { accessorKey: "tax", header: () => <div className="text-right">TAX</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.tax)}</div> },
+      { accessorKey: "crmRate", header: () => <div className="text-right">CRM</div>, cell: ({ row }) => <div className="text-right">{row.original.crmRate}</div> },
+      { accessorKey: "sfPrice", header: () => <div className="text-right">SF/Price</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.sfPrice)}</div> },
+      { id: "totalRmb", header: () => <div className="text-right">Total RMB</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalRmb(row.original))}</div> },
+      { accessorKey: "ftrPerUnit", header: () => <div className="text-right">FTR/LUNIT</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.ftrPerUnit)}</div> },
+      { id: "totalFtr", header: () => <div className="text-right">TOTAL FTR</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalFtr(row.original))}</div> },
+      { id: "totalTax", header: () => <div className="text-right">TOTAL TAX</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalTax(row.original))}</div> },
+      { id: "crmUnit", header: () => <div className="text-right">CRM/UNIT</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemCrmCostPerUnit(row.original))}</div> },
+      { id: "totalCrm", header: () => <div className="text-right">TOTAL CRM</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalCrm(row.original))}</div> },
+      { id: "costUnit", header: () => <div className="text-right">COST/UNIT</div>, cell: ({ row }) => <div className="text-right bg-blue-50/50 dark:bg-blue-950/20 font-medium">{fmt(getItemCostPerUnit(row.original))}</div> },
+      { id: "totalCost", header: () => <div className="text-right">TOTAL COST</div>, cell: ({ row }) => <div className="text-right bg-blue-50/50 dark:bg-blue-950/20 font-medium">{fmt(getItemTotalCost(row.original))}</div> },
+      { id: "diff", header: () => <div className="text-right">DIFF</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemDiff(row.original))}</div> },
+      { id: "totalDiff", header: () => <div className="text-right">TOTAL DIFF</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalDiff(row.original))}</div> },
+      { id: "totalSell", header: () => <div className="text-right">TOTAL SELL</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalSell(row.original))}</div> },
+      {
+        id: "actions",
+        header: () => null,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
+                <IconDotsVertical className="size-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                <IconPencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onClick={() => openDeleteDialog(row.original.id, row.original.name)}>
+                <IconTrash className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [data.shipments, openEdit, openDeleteDialog]
+  );
+
+  const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
+  const table = useReactTable({
+    data: data.shipmentItems,
+    columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getRowId: (row) => row.id.toString(),
+  });
+
   return (
-    <div className="flex flex-col gap-6 py-4 md:gap-8 md:py-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 py-4 md:gap-8 md:py-6">
       <div className="flex items-center justify-between px-4 lg:px-6">
         <h1 className="text-xl font-semibold">Items</h1>
-        <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <IconLayoutColumns className="size-4" />
+                <span className="hidden lg:inline">Columns</span>
+                <IconChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 max-h-64 overflow-y-auto">
+              {table.getAllColumns().filter((col) => col.getCanHide()).map((col) => (
+                <DropdownMenuCheckboxItem
+                  key={col.id}
+                  checked={col.getIsVisible()}
+                  onCheckedChange={(v) => col.toggleVisibility(!!v)}
+                >
+                  {col.id}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <SheetTrigger asChild>
             <Button size="sm" onClick={openCreate}>
               <IconPlus className="size-4" />
@@ -298,103 +414,85 @@ export function ItemsPage() {
             </form>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
-      <div className="overflow-x-auto mx-4 lg:mx-6">
-        <div className="min-w-[1400px] overflow-hidden rounded-lg border">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 lg:px-6">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">CTN</TableHead>
-                <TableHead className="text-right">QTY</TableHead>
-                <TableHead className="text-right">PUR/PRICE</TableHead>
-                <TableHead className="text-right">TAX</TableHead>
-                <TableHead className="text-right">CRM</TableHead>
-                <TableHead className="text-right">SF/Price</TableHead>
-                <TableHead className="text-right">Total RMB</TableHead>
-                <TableHead className="text-right">FTR/LUNIT</TableHead>
-                <TableHead className="text-right">TOTAL FTR</TableHead>
-                <TableHead className="text-right">TOTAL TAX</TableHead>
-                <TableHead className="text-right">CRM/UNIT</TableHead>
-                <TableHead className="text-right">TOTAL CRM</TableHead>
-                <TableHead className="text-right bg-blue-50 dark:bg-blue-950/30">COST/UNIT</TableHead>
-                <TableHead className="text-right bg-blue-50 dark:bg-blue-950/30">TOTAL COST</TableHead>
-                <TableHead className="text-right">DIFF</TableHead>
-                <TableHead className="text-right">TOTAL DIFF</TableHead>
-                <TableHead className="text-right">TOTAL SELL</TableHead>
-                <TableHead className="w-[50px]" />
-              </TableRow>
+            <TableHeader className="bg-muted sticky top-0 z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
             </TableHeader>
             <TableBody>
-              {data.shipmentItems.length === 0 ? (
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={19} className="h-24 text-center">
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
                     No items. Add a shipment first, then add items.
                   </TableCell>
                 </TableRow>
-              ) : (
-                data.shipmentItems.map((item) => {
-                  const shipment = data.shipments.find((s) => s.id === item.shipmentId);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div>{item.name}</div>
-                          <div className="text-muted-foreground text-xs">
-                            {shipment?.piNumber ?? item.shipmentId}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{item.ctn}</TableCell>
-                      <TableCell className="text-right">{item.qty}</TableCell>
-                      <TableCell className="text-right">{fmt(item.purPrice)}</TableCell>
-                      <TableCell className="text-right">{fmt(item.tax)}</TableCell>
-                      <TableCell className="text-right">{item.crmRate}</TableCell>
-                      <TableCell className="text-right">{fmt(item.sfPrice)}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalRmb(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(item.ftrPerUnit)}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalFtr(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalTax(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemCrmCostPerUnit(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalCrm(item))}</TableCell>
-                      <TableCell className="text-right bg-blue-50/50 dark:bg-blue-950/20 font-medium">
-                        {fmt(getItemCostPerUnit(item))}
-                      </TableCell>
-                      <TableCell className="text-right bg-blue-50/50 dark:bg-blue-950/20 font-medium">
-                        {fmt(getItemTotalCost(item))}
-                      </TableCell>
-                      <TableCell className="text-right">{fmt(getItemDiff(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalDiff(item))}</TableCell>
-                      <TableCell className="text-right">{fmt(getItemTotalSell(item))}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <IconDotsVertical className="size-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(item)}>
-                              <IconPencil className="size-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => openDeleteDialog(item.id, item.name)}
-                            >
-                              <IconTrash className="size-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
               )}
             </TableBody>
           </Table>
+        </div>
+        <div className="flex items-center justify-between px-4">
+          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+            {table.getFilteredRowModel().rows.length} row(s)
+          </div>
+          <div className="flex w-full items-center gap-8 lg:w-fit">
+            <div className="hidden items-center gap-2 lg:flex">
+              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                Rows per page
+              </Label>
+              <Select value={`${table.getState().pagination.pageSize}`} onValueChange={(v) => table.setPageSize(Number(v))}>
+                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                  <SelectValue placeholder={table.getState().pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <SelectItem key={n} value={`${n}`}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-fit items-center justify-center text-sm font-medium">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            </div>
+            <div className="ml-auto flex items-center gap-2 lg:ml-0">
+              <Button variant="outline" className="hidden h-8 w-8 p-0 lg:flex" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+                <span className="sr-only">First page</span>
+                <IconChevronsLeft className="size-4" />
+              </Button>
+              <Button variant="outline" className="size-8" size="icon" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                <span className="sr-only">Previous</span>
+                <IconChevronLeft className="size-4" />
+              </Button>
+              <Button variant="outline" className="size-8" size="icon" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                <span className="sr-only">Next</span>
+                <IconChevronRight className="size-4" />
+              </Button>
+              <Button variant="outline" className="hidden size-8 lg:flex" size="icon" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
+                <span className="sr-only">Last page</span>
+                <IconChevronsRight className="size-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

@@ -2,13 +2,27 @@
 
 import * as React from "react";
 import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
   IconCircleCheckFilled,
   IconDotsVertical,
+  IconLayoutColumns,
   IconLoader,
   IconPencil,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -148,11 +163,138 @@ export function ShipmentsPage() {
     setDeleteTarget(null);
   }
 
+  const columns = React.useMemo<ColumnDef<Shipment>[]>(
+    () => [
+      {
+        accessorKey: "piNumber",
+        header: "PI Number",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.piNumber}</span>
+        ),
+      },
+      {
+        accessorKey: "supplier",
+        header: "Supplier",
+      },
+      {
+        accessorKey: "totalAmountRmb",
+        header: () => <div className="text-right">Total (RMB)</div>,
+        cell: ({ row }) => (
+          <div className="text-right">
+            {row.original.totalAmountRmb.toLocaleString()} {row.original.currency}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "bookingRate",
+        header: () => <div className="text-right">Booking Rate</div>,
+        cell: ({ row }) => (
+          <div className="text-right">{row.original.bookingRate}</div>
+        ),
+      },
+      {
+        id: "bookedEtb",
+        header: () => <div className="text-right">Booked ETB</div>,
+        cell: ({ row }) => (
+          <div className="text-right">
+            {(row.original.totalAmountRmb * row.original.bookingRate).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}{" "}
+            ETB
+          </div>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="gap-1">
+            {row.original.status === "fully_paid" ? (
+              <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
+            ) : (
+              <IconLoader className="size-3" />
+            )}
+            {statusLabels[row.original.status]}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => null,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                size="icon"
+              >
+                <IconDotsVertical className="size-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                <IconPencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => openDeleteDialog(row.original.id, row.original.piNumber)}
+              >
+                <IconTrash className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [openEdit, openDeleteDialog]
+  );
+
+  const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
+  const table = useReactTable({
+    data: data.shipments,
+    columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getRowId: (row) => row.id.toString(),
+  });
+
   return (
-    <div className="flex flex-col gap-6 py-4 md:gap-8 md:py-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 py-4 md:gap-8 md:py-6">
       <div className="flex items-center justify-between px-4 lg:px-6">
         <h1 className="text-xl font-semibold">Shipments / PI</h1>
-        <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <IconLayoutColumns className="size-4" />
+                <span className="hidden lg:inline">Columns</span>
+                <IconChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {table
+                .getAllColumns()
+                .filter((col) => col.getCanHide())
+                .map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(v) => col.toggleVisibility(!!v)}
+                  >
+                    {col.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <SheetTrigger asChild>
             <Button size="sm" onClick={openCreate}>
               <IconPlus className="size-4" />
@@ -240,80 +382,116 @@ export function ShipmentsPage() {
             </form>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
-      <div className="overflow-hidden rounded-lg border mx-4 lg:mx-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>PI Number</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead className="text-right">Total (RMB)</TableHead>
-              <TableHead className="text-right">Booking Rate</TableHead>
-              <TableHead className="text-right">Booked ETB</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[50px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.shipments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No shipments. Click &quot;Add PI&quot; to create one.
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.shipments.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.piNumber}</TableCell>
-                  <TableCell>{s.supplier}</TableCell>
-                  <TableCell className="text-right">
-                    {s.totalAmountRmb.toLocaleString()} {s.currency}
-                  </TableCell>
-                  <TableCell className="text-right">{s.bookingRate}</TableCell>
-                  <TableCell className="text-right">
-                    {(s.totalAmountRmb * s.bookingRate).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    ETB
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1">
-                      {s.status === "fully_paid" ? (
-                        <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
-                      ) : (
-                        <IconLoader className="size-3" />
-                      )}
-                      {statusLabels[s.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <IconDotsVertical className="size-4" />
-                          <span className="sr-only">Actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(s)}>
-                          <IconPencil className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => openDeleteDialog(s.id, s.piNumber)}
-                        >
-                          <IconTrash className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+      <div className="relative flex flex-1 min-h-0 flex-col gap-4 overflow-auto px-4 lg:px-6">
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="bg-muted sticky top-0 z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No shipments. Click &quot;Add PI&quot; to create one.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-between px-4">
+          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+            {table.getFilteredRowModel().rows.length} row(s)
+          </div>
+          <div className="flex w-full items-center gap-8 lg:w-fit">
+            <div className="hidden items-center gap-2 lg:flex">
+              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                Rows per page
+              </Label>
+              <Select
+                value={`${table.getState().pagination.pageSize}`}
+                onValueChange={(v) => table.setPageSize(Number(v))}
+              >
+                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                  <SelectValue placeholder={table.getState().pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <SelectItem key={n} value={`${n}`}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-fit items-center justify-center text-sm font-medium">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            </div>
+            <div className="ml-auto flex items-center gap-2 lg:ml-0">
+              <Button
+                variant="outline"
+                className="hidden h-8 w-8 p-0 lg:flex"
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <span className="sr-only">First page</span>
+                <IconChevronsLeft className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="size-8"
+                size="icon"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <span className="sr-only">Previous</span>
+                <IconChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="size-8"
+                size="icon"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                <span className="sr-only">Next</span>
+                <IconChevronRight className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="hidden size-8 lg:flex"
+                size="icon"
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+              >
+                <span className="sr-only">Last page</span>
+                <IconChevronsRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

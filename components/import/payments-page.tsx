@@ -2,13 +2,27 @@
 
 import * as React from "react";
 import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
   IconDotsVertical,
+  IconLayoutColumns,
   IconPencil,
   IconPlus,
   IconTrendingDown,
   IconTrendingUp,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -137,11 +152,123 @@ export function PaymentsPage() {
     setDeleteTarget(null);
   }
 
+  const columns = React.useMemo<ColumnDef<Payment>[]>(
+    () => [
+      {
+        id: "shipment",
+        header: "Shipment",
+        cell: ({ row }) => {
+          const p = row.original;
+          const shipment = data.shipments.find((s) => s.id === p.shipmentId);
+          return <span className="font-medium">{shipment?.piNumber ?? p.shipmentId}</span>;
+        },
+      },
+      { accessorKey: "date", header: "Date" },
+      {
+        accessorKey: "amountRmb",
+        header: () => <div className="text-right">Amount (RMB)</div>,
+        cell: ({ row }) => <div className="text-right">{row.original.amountRmb.toLocaleString()} RMB</div>,
+      },
+      {
+        accessorKey: "actualRate",
+        header: () => <div className="text-right">Actual Rate</div>,
+        cell: ({ row }) => <div className="text-right">{row.original.actualRate}</div>,
+      },
+      {
+        accessorKey: "etbPaid",
+        header: () => <div className="text-right">ETB Paid</div>,
+        cell: ({ row }) => (
+          <div className="text-right">
+            {row.original.etbPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB
+          </div>
+        ),
+      },
+      {
+        accessorKey: "forexGainLoss",
+        header: () => <div className="text-right">Forex G/L</div>,
+        cell: ({ row }) => {
+          const p = row.original;
+          const isGain = p.forexGainLoss >= 0;
+          return (
+            <div className={`text-right font-medium ${isGain ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+              {isGain ? <IconTrendingUp className="inline size-3" /> : <IconTrendingDown className="inline size-3" />}{" "}
+              {isGain ? "+" : ""}{p.forexGainLoss.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "note",
+        header: "Note",
+        cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.note ?? "—"}</span>,
+      },
+      {
+        id: "actions",
+        header: () => null,
+        enableHiding: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
+                <IconDotsVertical className="size-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+              <DropdownMenuItem onClick={() => openEdit(row.original)}>
+                <IconPencil className="size-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onClick={() => openDeleteDialog(row.original.id)}>
+                <IconTrash className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [data, openEdit, openDeleteDialog]
+  );
+
+  const [columnVisibility, setColumnVisibility] = React.useState<Record<string, boolean>>({});
+  const table = useReactTable({
+    data: data.payments,
+    columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getRowId: (row) => row.id.toString(),
+  });
+
   return (
-    <div className="flex flex-col gap-6 py-4 md:gap-8 md:py-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-6 py-4 md:gap-8 md:py-6">
       <div className="flex items-center justify-between px-4 lg:px-6">
         <h1 className="text-xl font-semibold">Payments</h1>
-        <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <IconLayoutColumns className="size-4" />
+                <span className="hidden lg:inline">Columns</span>
+                <IconChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {table.getAllColumns().filter((col) => col.getCanHide()).map((col) => (
+                <DropdownMenuCheckboxItem
+                  key={col.id}
+                  checked={col.getIsVisible()}
+                  onCheckedChange={(v) => col.toggleVisibility(!!v)}
+                >
+                  {col.id}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <SheetTrigger asChild>
             <Button size="sm" onClick={openCreate}>
               <IconPlus className="size-4" />
@@ -223,99 +350,86 @@ export function PaymentsPage() {
             </form>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
-      <div className="overflow-hidden rounded-lg border mx-4 lg:mx-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Shipment</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Amount (RMB)</TableHead>
-              <TableHead className="text-right">Actual Rate</TableHead>
-              <TableHead className="text-right">ETB Paid</TableHead>
-              <TableHead className="text-right">Forex G/L</TableHead>
-              <TableHead>Note</TableHead>
-              <TableHead className="w-[50px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.payments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  No payments. Record a partial or full payment.
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.payments.map((p) => {
-                const shipment = data.shipments.find(
-                  (s) => s.id === p.shipmentId
-                );
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">
-                      {shipment?.piNumber ?? p.shipmentId}
-                    </TableCell>
-                    <TableCell>{p.date}</TableCell>
-                    <TableCell className="text-right">
-                      {p.amountRmb.toLocaleString()} RMB
-                    </TableCell>
-                    <TableCell className="text-right">{p.actualRate}</TableCell>
-                    <TableCell className="text-right">
-                      {p.etbPaid.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}{" "}
-                      ETB
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-medium ${
-                        p.forexGainLoss >= 0
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
-                      }`}
-                    >
-                      {p.forexGainLoss >= 0 ? (
-                        <IconTrendingUp className="inline size-3" />
-                      ) : (
-                        <IconTrendingDown className="inline size-3" />
-                      )}{" "}
-                      {p.forexGainLoss >= 0 ? "+" : ""}
-                      {p.forexGainLoss.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}{" "}
-                      ETB
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {p.note ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
-                            <IconDotsVertical className="size-4" />
-                            <span className="sr-only">Actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(p)}>
-                            <IconPencil className="size-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => openDeleteDialog(p.id)}
-                          >
-                            <IconTrash className="size-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 lg:px-6">
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="bg-muted sticky top-0 z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
                   </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No payments. Record a partial or full payment.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-between px-4">
+          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+            {table.getFilteredRowModel().rows.length} row(s)
+          </div>
+          <div className="flex w-full items-center gap-8 lg:w-fit">
+            <div className="hidden items-center gap-2 lg:flex">
+              <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                Rows per page
+              </Label>
+              <Select value={`${table.getState().pagination.pageSize}`} onValueChange={(v) => table.setPageSize(Number(v))}>
+                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                  <SelectValue placeholder={table.getState().pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <SelectItem key={n} value={`${n}`}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-fit items-center justify-center text-sm font-medium">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+            </div>
+            <div className="ml-auto flex items-center gap-2 lg:ml-0">
+              <Button variant="outline" className="hidden h-8 w-8 p-0 lg:flex" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+                <span className="sr-only">First page</span>
+                <IconChevronsLeft className="size-4" />
+              </Button>
+              <Button variant="outline" className="size-8" size="icon" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                <span className="sr-only">Previous</span>
+                <IconChevronLeft className="size-4" />
+              </Button>
+              <Button variant="outline" className="size-8" size="icon" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                <span className="sr-only">Next</span>
+                <IconChevronRight className="size-4" />
+              </Button>
+              <Button variant="outline" className="hidden size-8 lg:flex" size="icon" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
+                <span className="sr-only">Last page</span>
+                <IconChevronsRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
       <AlertDialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
