@@ -31,7 +31,7 @@ jobs:
     - name: Build Next.js app
       run: npm run build
 
-    - name: Deploy to cPanel via SFTP
+    - name: Deploy to cPanel via FTPS
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
@@ -40,7 +40,7 @@ jobs:
         server-dir: ${{ secrets.FTP_SERVER_DIR }}
         local-dir: ./
         passive: true
-        protocol: sftp
+        protocol: ftps
         exclude: |
          .git/**
          .github/**
