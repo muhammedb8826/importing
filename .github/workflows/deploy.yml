@@ -31,20 +31,14 @@ jobs:
     - name: Build Next.js app
       run: npm run build
 
-    - name: Deploy to cPanel via FTPS
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+    - name: Deploy via SFTP
+      uses: appleboy/scp-action@master
       with:
-        server: ${{ secrets.FTP_SERVER }}
+        host: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: ${{ secrets.FTP_SERVER_DIR }}
-        local-dir: ./
-        passive: true
-        protocol: ftps
-        exclude: |
-         .git/**
-         .github/**
-          node_modules/**
-         .next/cache/**
-         .env.production
+        port: 22
+        source: "./"
+        target: ${{ secrets.FTP_SERVER_DIR }}
+        rsync: true
       # Optionally add any other files you don't need on the remote server
