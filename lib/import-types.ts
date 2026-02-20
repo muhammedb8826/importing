@@ -52,8 +52,14 @@ export function getItemTotalRmb(item: ShipmentItem): number {
   return getItemTotalUnits(item) * item.purPrice;
 }
 
+const ETB_UNIT_MULTIPLIER = 27;
+
+export function getItemFtrPerUnit(item: ShipmentItem): number {
+  return item.purPrice * ETB_UNIT_MULTIPLIER;
+}
+
 export function getItemTotalFtr(item: ShipmentItem): number {
-  return getItemTotalUnits(item) * item.ftrPerUnit;
+  return getItemTotalUnits(item) * getItemFtrPerUnit(item);
 }
 
 export function getItemTotalTax(item: ShipmentItem): number {
@@ -64,20 +70,20 @@ export function getItemTotalTax(item: ShipmentItem): number {
 //   return (item.purPrice + item.ftrPerUnit + item.tax + item.sfPrice) * item.crmRate;
 // }
 
-const CRM_BASE = 300;
+const CBM_MULTIPLIER = 30000;
 
 export function getItemCrmCostPerUnit(item: ShipmentItem): number {
-  return CRM_BASE * item.crmRate;
+  // CBM cost/unit = ctn * cbm * 30000 / (ctn * qty) = cbm * 30000 / qty
+  return (item.crmRate * CBM_MULTIPLIER) / item.qty;
 }
 
 export function getItemTotalCrm(item: ShipmentItem): number {
-  return getItemTotalUnits(item) * getItemCrmCostPerUnit(item);
+  return item.ctn * item.crmRate * CBM_MULTIPLIER;
 }
 
 export function getItemCostPerUnit(item: ShipmentItem): number {
-  // ftrPerUnit (ETB/UNIT) is in ETB; convert to RMB using booking rate: ETB * rate = RMB equivalent
-  const ftrRmb = item.ftrPerUnit * item.bookingRate;
-  return item.purPrice + ftrRmb + item.tax + getItemCrmCostPerUnit(item);
+  // Excel: COST/UNIT = tax + ETB/unit + CBM cost/unit; ETB/unit = purPrice * 27
+  return item.tax + getItemFtrPerUnit(item) + getItemCrmCostPerUnit(item);
 }
 
 export function getItemTotalCost(item: ShipmentItem): number {

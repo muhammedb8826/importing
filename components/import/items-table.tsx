@@ -45,7 +45,6 @@ export function ItemsTable() {
   const [tax, setTax] = React.useState("");
   const [crmRate, setCrmRate] = React.useState("");
   const [sfPrice, setSfPrice] = React.useState("");
-  const [ftrPerUnit, setFtrPerUnit] = React.useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,8 +55,7 @@ export function ItemsTable() {
     const taxVal = parseFloat(tax);
     const crm = parseFloat(crmRate);
     const sf = parseFloat(sfPrice);
-    const ftr = parseFloat(ftrPerUnit);
-    if (!shipmentId || !name.trim() || isNaN(ctnVal) || isNaN(qtyVal) || isNaN(pur) || isNaN(taxVal) || isNaN(crm) || isNaN(sf) || isNaN(ftr)) {
+    if (!shipmentId || !name.trim() || isNaN(ctnVal) || isNaN(qtyVal) || isNaN(pur) || isNaN(taxVal) || isNaN(crm) || isNaN(sf)) {
       toast.error("Please fill all fields correctly");
       return;
     }
@@ -71,7 +69,7 @@ export function ItemsTable() {
       tax: taxVal,
       crmRate: crm,
       sfPrice: sf,
-      ftrPerUnit: ftr,
+      ftrPerUnit: pur * 27,
       bookingRate: shipment?.bookingRate ?? 0.45,
     });
     toast.success("Item added");
@@ -83,7 +81,6 @@ export function ItemsTable() {
     setTax("");
     setCrmRate("");
     setSfPrice("");
-    setFtrPerUnit("");
     setOpen(false);
   }
 
@@ -199,17 +196,7 @@ export function ItemsTable() {
                     placeholder="160"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="item-ftrPerUnit">FTR/LUNIT (RMB)</Label>
-                  <Input
-                    id="item-ftrPerUnit"
-                    type="number"
-                    step="0.01"
-                    value={ftrPerUnit}
-                    onChange={(e) => setFtrPerUnit(e.target.value)}
-                    placeholder="94.5"
-                  />
-                </div>
+                <p className="text-muted-foreground text-sm">ETB/unit = purchase price × 27 (calculated automatically)</p>
               </div>
               <SheetFooter>
                 <Button type="submit">Add Item</Button>

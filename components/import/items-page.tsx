@@ -72,6 +72,7 @@ import {
   getItemCostPerUnit,
   getItemCrmCostPerUnit,
   getItemDiff,
+  getItemFtrPerUnit,
   getItemTotalCost,
   getItemTotalCrm,
   getItemTotalDiff,
@@ -101,7 +102,6 @@ export function ItemsPage() {
   const [tax, setTax] = React.useState("");
   const [crmRate, setCrmRate] = React.useState("");
   const [sfPrice, setSfPrice] = React.useState("");
-  const [ftrPerUnit, setFtrPerUnit] = React.useState("");
 
   function resetForm() {
     setShipmentId("");
@@ -112,7 +112,6 @@ export function ItemsPage() {
     setTax("");
     setCrmRate("");
     setSfPrice("");
-    setFtrPerUnit("");
     setEditingId(null);
   }
 
@@ -126,7 +125,6 @@ export function ItemsPage() {
     setTax(String(item.tax));
     setCrmRate(String(item.crmRate));
     setSfPrice(String(item.sfPrice));
-    setFtrPerUnit(String(item.ftrPerUnit));
     setOpen(true);
   }
 
@@ -144,8 +142,7 @@ export function ItemsPage() {
     const taxVal = parseFloat(tax);
     const crm = parseFloat(crmRate);
     const sf = parseFloat(sfPrice);
-    const ftr = parseFloat(ftrPerUnit);
-    if (!shipmentId || !name.trim() || isNaN(ctnVal) || isNaN(qtyVal) || isNaN(pur) || isNaN(taxVal) || isNaN(crm) || isNaN(sf) || isNaN(ftr)) {
+    if (!shipmentId || !name.trim() || isNaN(ctnVal) || isNaN(qtyVal) || isNaN(pur) || isNaN(taxVal) || isNaN(crm) || isNaN(sf)) {
       toast.error("Please fill all fields correctly");
       return;
     }
@@ -160,7 +157,7 @@ export function ItemsPage() {
       tax: taxVal,
       crmRate: crm,
       sfPrice: sf,
-      ftrPerUnit: ftr,
+      ftrPerUnit: pur * 27,
       bookingRate,
     };
     if (editingId) {
@@ -210,7 +207,7 @@ export function ItemsPage() {
       { accessorKey: "crmRate", header: () => <div className="text-right">CRM</div>, cell: ({ row }) => <div className="text-right">{row.original.crmRate}</div> },
       { accessorKey: "sfPrice", header: () => <div className="text-right">SF/Price</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.sfPrice)}</div> },
       { id: "totalRmb", header: () => <div className="text-right">Total RMB</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalRmb(row.original))}</div> },
-      { accessorKey: "ftrPerUnit", header: () => <div className="text-right">FTR/LUNIT</div>, cell: ({ row }) => <div className="text-right">{fmt(row.original.ftrPerUnit)}</div> },
+      { id: "ftrPerUnit", header: () => <div className="text-right">ETB/UNIT</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemFtrPerUnit(row.original))}</div> },
       { id: "totalFtr", header: () => <div className="text-right">TOTAL FTR</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalFtr(row.original))}</div> },
       { id: "totalTax", header: () => <div className="text-right">TOTAL TAX</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemTotalTax(row.original))}</div> },
       { id: "crmUnit", header: () => <div className="text-right">CRM/UNIT</div>, cell: ({ row }) => <div className="text-right">{fmt(getItemCrmCostPerUnit(row.original))}</div> },
@@ -396,17 +393,7 @@ export function ItemsPage() {
                     placeholder="160"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="item-ftrPerUnit">FTR/LUNIT (Freight per unit)</Label>
-                  <Input
-                    id="item-ftrPerUnit"
-                    type="number"
-                    step="0.01"
-                    value={ftrPerUnit}
-                    onChange={(e) => setFtrPerUnit(e.target.value)}
-                    placeholder="94.5"
-                  />
-                </div>
+                <p className="text-muted-foreground text-sm">ETB/unit = purchase price × 27 (calculated automatically)</p>
               </div>
               <SheetFooter>
                 <Button type="submit">{editingId ? "Update" : "Add"} Item</Button>
