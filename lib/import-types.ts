@@ -60,8 +60,14 @@ export function getItemTotalTax(item: ShipmentItem): number {
   return getItemTotalUnits(item) * item.tax;
 }
 
+// export function getItemCrmCostPerUnit(item: ShipmentItem): number {
+//   return (item.purPrice + item.ftrPerUnit + item.tax + item.sfPrice) * item.crmRate;
+// }
+
+const CRM_BASE = 300;
+
 export function getItemCrmCostPerUnit(item: ShipmentItem): number {
-  return (item.purPrice + item.ftrPerUnit + item.tax + item.sfPrice) * item.crmRate;
+  return CRM_BASE * item.crmRate;
 }
 
 export function getItemTotalCrm(item: ShipmentItem): number {
