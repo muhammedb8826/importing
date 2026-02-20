@@ -61,7 +61,7 @@ export function getItemTotalTax(item: ShipmentItem): number {
 }
 
 export function getItemCrmCostPerUnit(item: ShipmentItem): number {
-  return (item.purPrice + item.ftrPerUnit + item.tax) * item.crmRate;
+  return (item.purPrice + item.ftrPerUnit + item.tax + item.sfPrice) * item.crmRate;
 }
 
 export function getItemTotalCrm(item: ShipmentItem): number {
