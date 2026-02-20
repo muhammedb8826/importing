@@ -75,7 +75,9 @@ export function getItemTotalCrm(item: ShipmentItem): number {
 }
 
 export function getItemCostPerUnit(item: ShipmentItem): number {
-  return item.purPrice + item.ftrPerUnit + item.tax + getItemCrmCostPerUnit(item);
+  // ftrPerUnit (ETB/UNIT) is in ETB; convert to RMB using booking rate: ETB * rate = RMB equivalent
+  const ftrRmb = item.ftrPerUnit * item.bookingRate;
+  return item.purPrice + ftrRmb + item.tax + getItemCrmCostPerUnit(item);
 }
 
 export function getItemTotalCost(item: ShipmentItem): number {
